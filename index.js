@@ -1,6 +1,6 @@
 /**
  * Chickenizer — a Revenge/Vendetta plugin
- * Written in unbundled ES5 JS for zero-compiler installations.
+ * Written in unbundled ES5 JS for zero-compiler installations
  */
 (function () {
     // Dynamic fallback matching whichever mod architecture is actively executing the script
