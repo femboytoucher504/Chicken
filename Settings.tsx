@@ -4,7 +4,6 @@ import { useProxy } from "@vendetta/storage";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function Settings() {
-  // useProxy ensures the UI automatically rerenders when values in storage update
   useProxy(storage);
   const [input, setInput] = React.useState("");
 
@@ -28,7 +27,6 @@ export default function Settings() {
         Add direct image URLs or JSON APIs (which output a standard link, image, or file string payload).
       </Text>
 
-      {/* Input Field and Action Trigger */}
       <View style={{ flexDirection: "row", marginBottom: 20 }}>
         <TextInput
           value={input}
@@ -58,7 +56,6 @@ export default function Settings() {
         </TouchableOpacity>
       </View>
 
-      {/* Render Active List of Sources */}
       <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "bold", marginBottom: 8 }}>
         Active Pipeline Sources ({storage.sources?.length || 0})
       </Text>
@@ -87,4 +84,3 @@ export default function Settings() {
     </ScrollView>
   );
 }
-
