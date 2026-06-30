@@ -1,0 +1,40 @@
+name: Auto Update Plugin Hash
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'index.js'
+
+permissions:
+  contents: write
+
+jobs:
+  hash-generator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Calculate Hash and Inject into Manifest
+        run: |
+          FILE_HASH=$(sha256sum index.js | awk '{print $1}')
+          echo "Generated SHA-256: $FILE_HASH"
+          
+          python3 -c "
+          import json
+          with open('manifest.json', 'r') as file:
+              data = json.load(file)
+          data['hash'] = '$FILE_HASH'
+          if 'vendetta' in data:
+              data['vendetta']['hash'] = '$FILE_HASH'
+          with open('manifest.json', 'w') as file:
+              json.dump(data, file, indent=2)
+          "
+
+      - name: Commit Updated Hash Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: automated manifest hash synchronisation"
+          
