@@ -7,11 +7,11 @@
       "id": "0"
     }
   ],
-  "main": "index.js",
+  "main": "dist.js",
   "version": "1.0.1",
-  "hash": "ff30b13560f672cc5b671330b4de294161c6fb38e4aaa664ba1abeccd043977b",
+  "hash": "89aeddd8822c492b1355cf2260afdc5c968f9bbddc56ebe1bbe88aedafa27fde",
   "vendetta": {
     "icon": "ic_pets",
-    "hash": "ff30b13560f672cc5b671330b4de294161c6fb38e4aaa664ba1abeccd043977b"
+    "hash": "89aeddd8822c492b1355cf2260afdc5c968f9bbddc56ebe1bbe88aedafa27fde"
   }
 }
