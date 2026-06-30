@@ -4,8 +4,9 @@
   "authors": [{ "name": "you", "id": "0" }],
   "main": "index.js",
   "version": "1.0.1",
+  "hash": "PENDING_AUTOMATION",
   "vendetta": {
     "icon": "ic_pets",
-    "hash": "31caf97f787b1e5e43444a9ad65aecfc6609b119b2db4bd8a9ccef271cb34b34"
+    "hash": "PENDING_AUTOMATION"
   }
 }
