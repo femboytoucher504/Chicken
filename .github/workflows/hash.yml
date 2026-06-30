@@ -1,4 +1,4 @@
-name: Auto Update Plugin Hash
+name: Auto Build and Update Plugin Hash
 
 on:
   push:
@@ -6,26 +6,40 @@ on:
       - main
     paths:
       - 'index.js'
+      - 'manifest.json'
 
 permissions:
   contents: write
 
 jobs:
-  hash-generator:
+  build-and-hash:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
 
-      - name: Calculate Hash and Inject into Manifest
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install esbuild Bundler
+        run: npm install -g esbuild
+
+      - name: Compile Code to Client format
         run: |
-          FILE_HASH=$(sha256sum index.js | awk '{print $1}')
-          echo "Generated SHA-256: $FILE_HASH"
+          esbuild index.js --bundle --format=cjs --external:@vendetta/commands --external:@vendetta/plugin --outfile=dist.js
+
+      - name: Calculate Hash and Update Manifest
+        run: |
+          FILE_HASH=$(sha256sum dist.js | awk '{print $1}')
+          echo "Generated Bundle SHA-256: $FILE_HASH"
           
           python3 -c "
           import json
           with open('manifest.json', 'r') as file:
               data = json.load(file)
+          data['main'] = 'dist.js'
           data['hash'] = '$FILE_HASH'
           if 'vendetta' in data:
               data['vendetta']['hash'] = '$FILE_HASH'
@@ -33,8 +47,8 @@ jobs:
               json.dump(data, file, indent=2)
           "
 
-      - name: Commit Updated Hash Changes
+      - name: Commit Compiled Bundle and Manifest
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: automated manifest hash synchronisation"
+          commit_message: "build: compile plugin bundle and update manifest hash"
           
