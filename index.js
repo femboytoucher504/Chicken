@@ -4,42 +4,28 @@ const DEFAULT_SOURCES = [
   "https://images.unsplash.com/photo-1587573089734-09cb6b4eb18b?auto=format&fit=crop&w=800&q=80"
 ];
 
-// Dynamically fetch Discord's high-performance native storage database
-const getStorage = () => {
-  return vendetta.metro.findByProps("getString", "setString");
-};
-
-const getSources = () => {
-  try {
-    const db = getStorage();
-    const stored = db ? db.getString("chickenizer_sources") : null;
-    return stored ? JSON.parse(stored) : [...DEFAULT_SOURCES];
-  } catch {
-    return [...DEFAULT_SOURCES];
-  }
-};
-
-const saveSources = (sources) => {
-  try {
-    const db = getStorage();
-    if (db) db.setString("chickenizer_sources", JSON.stringify(sources));
-  } catch (e) {}
-};
-
 let patches = [];
 
-export default {
+module.exports = {
   onLoad: () => {
-    const { commands } = vendetta;
+    // Access the client's official native global storage proxy safely
+    const storage = vendetta.plugin.storage;
+    
+    // Auto-initialize standard pool if empty
+    if (!storage.sources || !Array.isArray(storage.sources)) {
+      storage.sources = [...DEFAULT_SOURCES];
+    }
+
+    const { registerCommand } = vendetta.commands;
 
     // 1. /chick - Sends a random picture
     patches.push(
-      commands.registerCommand({
+      registerCommand({
         name: "chick",
         description: "Sends a random chicken or chick picture",
         options: [],
         execute: (args, ctx) => {
-          const srcs = getSources();
+          const srcs = (storage.sources && storage.sources.length > 0) ? storage.sources : DEFAULT_SOURCES;
           const randomPic = srcs[Math.floor(Math.random() * srcs.length)];
           return { content: randomPic };
         },
@@ -48,31 +34,29 @@ export default {
 
     // 2. /chick-add - Appends a new image URL
     patches.push(
-      commands.registerCommand({
+      registerCommand({
         name: "chick-add",
         description: "Add a new chicken picture source URL",
         options: [
           {
             name: "url",
             description: "The direct link to the image",
-            type: 3, // String
+            type: 3, // String type
             required: true,
           },
         ],
         execute: (args, ctx) => {
           const urlOption = args.find((arg) => arg.name === "url");
-          if (!urlOption || !urlOption.value.startsWith("http")) {
-            return { content: "❌ Please provide a valid web URL." };
+          if (!urlOption || !urlOption.value || !urlOption.value.startsWith("http")) {
+            return { content: "❌ Please provide a valid web URL starting with http or https." };
           }
           
           const targetUrl = urlOption.value.trim();
-          const srcs = getSources();
-          if (srcs.includes(targetUrl)) {
+          if (storage.sources.includes(targetUrl)) {
             return { content: "⚠️ This source link is already saved." };
           }
 
-          srcs.push(targetUrl);
-          saveSources(srcs);
+          storage.sources.push(targetUrl);
           return { content: "✅ Added new source successfully!" };
         },
       })
@@ -80,17 +64,16 @@ export default {
 
     // 3. /chick-list - Lists current sources
     patches.push(
-      commands.registerCommand({
+      registerCommand({
         name: "chick-list",
         description: "List all active chicken picture sources",
         options: [],
         execute: (args, ctx) => {
-          const srcs = getSources();
-          if (srcs.length === 0) {
+          if (!storage.sources || storage.sources.length === 0) {
             return { content: "🐔 No image sources are currently loaded." };
           }
           
-          const visibleList = srcs
+          const visibleList = storage.sources
             .map((src, index) => `**${index + 1}.** ${src}`)
             .join("\n");
             
@@ -101,36 +84,36 @@ export default {
 
     // 4. /chick-remove - Deletes an entry by its index number
     patches.push(
-      commands.registerCommand({
+      registerCommand({
         name: "chick-remove",
         description: "Remove a source entry using its index number from /chick-list",
         options: [
           {
             name: "index",
             description: "The number of the source to delete",
-            type: 4, // Integer
+            type: 4, // Integer type
             required: true,
           },
         ],
         execute: (args, ctx) => {
           const indexOption = args.find((arg) => arg.name === "index");
-          if (!indexOption) return { content: "❌ Specify an item number to clear." };
+          if (!indexOption || !indexOption.value) return { content: "❌ Specify an item number to clear." };
 
           const itemIndex = parseInt(indexOption.value) - 1;
-          const srcs = getSources();
-          if (itemIndex >= 0 && itemIndex < srcs.length) {
-            const deletedItem = srcs.splice(itemIndex, 1);
-            saveSources(srcs);
-            return { content: `🗑️ Successfully removed source entry: <${deletedItem[0]}>` };
+          if (isNaN(itemIndex) || itemIndex < 0 || itemIndex >= storage.sources.length) {
+            return { content: "❌ Invalid item number. Check positions via `/chick-list` first." };
           }
 
-          return { content: "❌ Invalid item number. Check positions via `/chick-list` first." };
+          const deletedItem = storage.sources.splice(itemIndex, 1);
+          return { content: `🗑️ Successfully removed source entry: <${deletedItem[0]}>` };
         },
       })
     );
   },
 
   onUnload: () => {
-    for (const unpatch of patches) unpatch();
+    for (const unpatch of patches) {
+      if (typeof unpatch === "function") unpatch();
+    }
   },
 };
