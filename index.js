@@ -52,47 +52,40 @@ var defaultSources = [
 
 var _unregisters = [];
 
-// Dynamic command structure factory
+// Command factory that constructs a perfectly compliant Discord Mobile slash command
 function createChickenCommand(commandName) {
     return {
+        id: "chicken-spammer-" + commandName, // Explicit unique ID stops the UI from hiding the command
         name: commandName,
         displayName: commandName,
         description: "Send a random chicken or chick picture!",
         displayDescription: "Send a random chicken or chick picture!",
-        inputType: 1,
-        type: 1,
+        inputType: 1, // Treat as a built-in text execution chip
+        type: 1,      // Chat command type
         options: [],
         execute: function (args, ctx) {
             try {
-                // Safely grab the internal message actions module
-                var MA = _findByProps
-                    ? (_findByProps("sendMessage", "receiveMessage") || _findByProps("sendMessage"))
-                    : null;
-                if (!MA) { return; }
-
                 var sources = (_storage.sources && _storage.sources.length > 0)
                     ? _storage.sources : defaultSources;
                 var randomSource = sources[Math.floor(Math.random() * sources.length)];
                 var isApi = randomSource.indexOf("/api") !== -1 || randomSource.slice(-5) === ".json";
 
-                var p = isApi
-                    ? fetch(randomSource)
+                // Return the target object or Promise directly so the chatbox intercepts it natively
+                if (isApi) {
+                    return fetch(randomSource)
                         .then(function (r) { return r.json(); })
-                        .then(function (d) { return d.url || d.image || d.file || d.link || randomSource; })
-                    : Promise.resolve(randomSource);
-
-                return p.then(function (imageUrl) {
-                    // Uses native sendMessage to push directly into the active channel chat pipeline
-                    MA.sendMessage(ctx.channel.id, { content: imageUrl });
-                }).catch(function (err) {
-                    if (MA.receiveMessage) {
-                        MA.receiveMessage(ctx.channel.id, {
-                            content: "Failed to get chicken: " + err.message
+                        .then(function (d) { 
+                            var url = d.url || d.image || d.file || d.link || randomSource;
+                            return { content: url };
+                        })
+                        .catch(function (err) {
+                            return { content: "Failed to fetch chicken image: " + err.message };
                         });
-                    }
-                });
+                } else {
+                    return { content: randomSource };
+                }
             } catch (e) {
-                return Promise.resolve();
+                return { content: "Plugin execution error occurred." };
             }
         }
     };
@@ -104,20 +97,20 @@ function onLoad() {
     }
 
     if (!_registerCommand) { 
-        if (_showToast) _showToast("ChickenSpammer: Registration module missing!", null);
+        if (_showToast) _showToast("ChickenSpammer: Registry module missing!", null);
         return; 
     }
 
     try {
-        // Registers both variations cleanly
+        // Safe parallel registration for both commands
         _unregisters.push(_registerCommand(createChickenCommand("chicken")));
         _unregisters.push(_registerCommand(createChickenCommand("chick")));
 
         if (_showToast) {
-            _showToast("ChickenSpammer: /chicken and /chick commands registered!", null);
+            _showToast("ChickenSpammer: /chicken and /chick commands online!", null);
         }
     } catch (e) {
-        if (_showToast) _showToast("ChickenSpammer registration error: " + e.message, null);
+        if (_showToast) _showToast("ChickenSpammer failed to inject commands: " + e.message, null);
     }
 }
 
@@ -202,4 +195,5 @@ function SettingsComponent() {
 
 if (typeof module !== "undefined") {
     module.exports = { onLoad: onLoad, onUnload: onUnload, settings: SettingsComponent };
-}
+        }
+                
