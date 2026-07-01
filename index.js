@@ -50,37 +50,50 @@ var defaultSources = [
     "https://images.unsplash.com/photo-1604848698030-c434ba086c94?auto=format&fit=crop&w=800&q=80"
 ];
 
-// Array to track unregister hooks for cleanup
 var _unregisters = [];
 
-// Helper function to generate command configurations dynamically
+// Dynamic command structure factory
 function createChickenCommand(commandName) {
     return {
         name: commandName,
         displayName: commandName,
         description: "Send a random chicken or chick picture!",
         displayDescription: "Send a random chicken or chick picture!",
-        inputType: 1, // ApplicationCommandInputType.BUILT_IN
-        type: 1,      // ApplicationCommandType.CHAT
+        inputType: 1,
+        type: 1,
         options: [],
         execute: function (args, ctx) {
-            var sources = (_storage.sources && _storage.sources.length > 0)
-                ? _storage.sources : defaultSources;
-            var randomSource = sources[Math.floor(Math.random() * sources.length)];
-            var isApi = randomSource.indexOf("/api") !== -1 || randomSource.slice(-5) === ".json";
+            try {
+                // Safely grab the internal message actions module
+                var MA = _findByProps
+                    ? (_findByProps("sendMessage", "receiveMessage") || _findByProps("sendMessage"))
+                    : null;
+                if (!MA) { return; }
 
-            var p = isApi
-                ? fetch(randomSource)
-                    .then(function (r) { return r.json(); })
-                    .then(function (d) { return d.url || d.image || d.file || d.link || randomSource; })
-                : Promise.resolve(randomSource);
+                var sources = (_storage.sources && _storage.sources.length > 0)
+                    ? _storage.sources : defaultSources;
+                var randomSource = sources[Math.floor(Math.random() * sources.length)];
+                var isApi = randomSource.indexOf("/api") !== -1 || randomSource.slice(-5) === ".json";
 
-            // Returning the Promise object directly lets the client mod safely pass the payload to the channel pipeline
-            return p.then(function (imageUrl) {
-                return { content: imageUrl };
-            }).catch(function (err) {
-                return { content: "Failed to get chicken image: " + err.message };
-            });
+                var p = isApi
+                    ? fetch(randomSource)
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) { return d.url || d.image || d.file || d.link || randomSource; })
+                    : Promise.resolve(randomSource);
+
+                return p.then(function (imageUrl) {
+                    // Uses native sendMessage to push directly into the active channel chat pipeline
+                    MA.sendMessage(ctx.channel.id, { content: imageUrl });
+                }).catch(function (err) {
+                    if (MA.receiveMessage) {
+                        MA.receiveMessage(ctx.channel.id, {
+                            content: "Failed to get chicken: " + err.message
+                        });
+                    }
+                });
+            } catch (e) {
+                return Promise.resolve();
+            }
         }
     };
 }
@@ -91,20 +104,20 @@ function onLoad() {
     }
 
     if (!_registerCommand) { 
-        if (_showToast) _showToast("ChickenSpammer: Command registration hook missing!", null);
+        if (_showToast) _showToast("ChickenSpammer: Registration module missing!", null);
         return; 
     }
 
     try {
-        // Registering both command variations cleanly
+        // Registers both variations cleanly
         _unregisters.push(_registerCommand(createChickenCommand("chicken")));
         _unregisters.push(_registerCommand(createChickenCommand("chick")));
 
         if (_showToast) {
-            _showToast("ChickenSpammer: /chicken and /chick commands ready!", null);
+            _showToast("ChickenSpammer: /chicken and /chick commands registered!", null);
         }
     } catch (e) {
-        if (_showToast) _showToast("ChickenSpammer failed to link commands: " + e.message, null);
+        if (_showToast) _showToast("ChickenSpammer registration error: " + e.message, null);
     }
 }
 
@@ -190,4 +203,3 @@ function SettingsComponent() {
 if (typeof module !== "undefined") {
     module.exports = { onLoad: onLoad, onUnload: onUnload, settings: SettingsComponent };
 }
-    
